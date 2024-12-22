@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Document Background and Transparency Adjuster</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0; 
+    background: #f7f7f7;
+    color: #333;
+  }
+
+  h1 {
+    text-align: center;
+    margin-top: 20px;
+  }
+
+  .container {
+    max-width: 600px;
+    margin: 20px auto;
+    background: #fff;
+    border-radius: 8px;
+    padding: 20px;
+    box-sizing: border-box;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  }
+
+  .upload-section, .controls, .bg-option, .type-option, .binarization-option, .download-container, .pdf-controls {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  input[type=file] {
+    margin: 10px 0;
+  }
+
+  #preview-container {
+    text-align: center;
+    border: 4px dashed #999;
+    background-color: #ccc;
+    background-image: 
+      linear-gradient(45deg, #eee 25%, transparent 25%), 
+      linear-gradient(45deg, transparent 75%, #eee 75%), 
+      linear-gradient(45deg, #eee 25%, transparent 25%), 
+      linear-gradient(45deg, transparent 75%, #eee 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    margin: 20px auto;
+    padding: 0;
+    border-radius: 0;
+    position: relative;
+    min-height: 200px; 
+    max-width: 600px;
+  }
+
+  #preview-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #333;
+    font-size: 1.2em;
+  }
+
+  #preview-container img {
+    max-width: 100%;
+    display: block;
+    margin: 0 auto;
+  }
+
+  #download-btn {
+    display: none;
+    text-decoration: none;
+    background: #0073e6;
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 4px;
+    font-weight: bold;
+  }
+
+  #download-btn:hover {
+    background: #005bb5;
+  }
+
+  .instructions {
+    font-size: 0.9em;
+    color: #666;
+    margin-top: 10px;
+  }
+
+  .slider-container {
+    margin: 20px 0;
+    text-align: center;
+  }
+
+  .slider-container label {
+    display: inline-block;
+    width: 240px;
+    text-align: right;
+    margin-right: 10px;
+    vertical-align: middle;
+  }
+
+  .slider-container input[type=range] {
+    width: 200px;
+    vertical-align: middle;
+  }
+
+  .slider-value {
+    display: inline-block;
+    width: 40px;
+    text-align: left;
+    margin-left: 10px;
+    vertical-align: middle;
+  }
+
+  .bg-option label, .type-option label, .binarization-option label {
+    margin: 0 10px;
+    cursor: pointer;
+  }
+
+  .download-container {
+    text-align: center;
+  }
+
+  .binarization-controls {
+    display: none; /* shown if binarization is checked */
+  }
+
+  .pdf-controls {
+    display: none; /* shown if PDF selected */
+  }
+
+  footer {
+    text-align: center;
+    font-size: 0.8em;
+    color: #555;
+    margin: 20px 0;
+  }
+
+</style>
+</head>
+<body>
+  <h1>Document Background and Transparency Adjuster</h1>
+  <div class="container">
+    <div class="upload-section">
+      <p>
+        Select or drop a document image (JPG/PNG) or a PDF file (first page).<br>
+        Choose background style, then decide if you want binarization.<br>
+        If not binarizing, you can adjust the White Scale (0-255) pre-gamma and Gamma Correction,<br>
+        and choose output type (grayscale or preserve colors).<br>
+        If binarizing, only a binarization threshold is available.<br>
+        For PDF, you can also adjust the DPI (default 300).
+      </p>
+      <input type="file" id="fileInput" accept="image/*,.pdf">
+      <p class="instructions">Or drag and drop a file into this window.</p>
+    </div>
+
+    <!-- Background Style -->
+    <div class="bg-option">
+      <span>Output Background:</span>
+      <label>
+        <input type="radio" name="backgroundOption" value="transparent" checked> Transparent
+      </label>
+      <label>
+        <input type="radio" name="backgroundOption" value="white"> White
+      </label>
+    </div>
+
+    <!-- Binarization or not -->
+    <div class="binarization-option">
+      <span>Binarization:</span>
+      <label>
+        <input type="checkbox" id="binarizationCheckbox"> Enable Binarization
+      </label>
+      <div class="binarization-controls">
+        <div class="slider-container">
+          <label for="binarizationSlider">Binarization Threshold (0=black,255=white):</label>
+          <input type="range" id="binarizationSlider" min="0" max="255" value="128" />
+          <span class="slider-value" id="binarizationValue">128</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PDF Controls (Only show if PDF is selected) -->
+    <div class="pdf-controls">
+      <div class="slider-container">
+        <label for="dpiSlider">PDF Render DPI (72 - 600):</label>
+        <input type="range" id="dpiSlider" min="72" max="600" step="1" value="300" />
+        <span class="slider-value" id="dpiValue">300</span>
+      </div>
+    </div>
+
+    <!-- Advanced Controls (visible by default since binarization is off) -->
+    <div class="advanced-controls">
+      <div class="controls">
+        <div class="slider-container">
+          <label for="whiteScaleSlider">White Scale Threshold (0-255):</label>
+          <input type="range" id="whiteScaleSlider" min="0" max="255" step="1" value="255" />
+          <span class="slider-value" id="whiteScaleValue">255</span>
+        </div>
+        <div class="slider-container">
+          <label for="gammaSlider">Gamma Correction (post-scaling):</label>
+          <input type="range" id="gammaSlider" min="0.1" max="3" step="0.1" value="1" />
+          <span class="slider-value" id="gammaValue">1.0</span>
+        </div>
+      </div>
+
+      <div class="type-option">
+        <span>Output Type:</span>
+        <label>
+          <input type="radio" name="outputType" value="grayscale" checked> Grayscale
+        </label>
+        <label>
+          <input type="radio" name="outputType" value="color"> Preserve Colors
+        </label>
+      </div>
+    </div>
+
+    <div class="download-container">
+      <a id="download-btn" download="converted_image.png">Download Converted PNG</a>
+    </div>
+  </div>
+
+  <div id="preview-container">
+    <canvas id="canvas" style="display:none;"></canvas>
+    <div id="preview-text">No image loaded</div>
+    <img id="preview" alt="Preview will appear here" style="display:none;"/>
+  </div>
+
+  <footer>
+    &copy; Yuting Zhang
+  </footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+<script>
+let originalData = null;
+let imgWidth = 0;
+let imgHeight = 0;
+
+let pdfDocument = null;
+let pdfPage = null;
+let isPDF = false;
+
+document.getElementById('fileInput').addEventListener('change', handleFileInput);
+document.getElementById('whiteScaleSlider').addEventListener('input', updateProcessing);
+document.getElementById('gammaSlider').addEventListener('input', updateProcessing);
+document.querySelectorAll('input[name="backgroundOption"]').forEach(radio => {
+  radio.addEventListener('change', updateProcessing);
+});
+document.querySelectorAll('input[name="outputType"]').forEach(radio => {
+  radio.addEventListener('change', updateProcessing);
+});
+document.getElementById('binarizationCheckbox').addEventListener('change', toggleBinarization);
+document.getElementById('binarizationSlider').addEventListener('input', updateProcessing);
+document.getElementById('dpiSlider').addEventListener('input', dpiChanged);
+
+// Drag and drop support
+document.addEventListener('dragover', (e) => {
+  e.preventDefault();
+});
+document.addEventListener('drop', (e) => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    loadFile(file).then(updateProcessing);
+  }
+});
+
+function toggleBinarization() {
+  const binControls = document.querySelector('.binarization-controls');
+  const advControls = document.querySelector('.advanced-controls');
+  const binEnabled = document.getElementById('binarizationCheckbox').checked;
+  
+  binControls.style.display = binEnabled ? 'block' : 'none';
+  advControls.style.display = binEnabled ? 'none' : 'block';
+
+  updateProcessing();
+}
+
+function dpiChanged() {
+  const dpi = parseInt(document.getElementById('dpiSlider').value, 10);
+  document.getElementById('dpiValue').textContent = dpi;
+  if (isPDF && pdfDocument && pdfPage) {
+    renderPDFPageAtDPI(dpi).then(() => {
+      updateProcessing();
+    });
+  }
+}
+
+async function handleFileInput(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  await loadFile(file);
+  updateProcessing();
+}
+
+async function loadFile(file) {
+  const fileName = file.name.toLowerCase();
+  if (fileName.endsWith('.pdf')) {
+    isPDF = true;
+    document.querySelector('.pdf-controls').style.display = 'block';
+    await loadPDF(file);
+  } else {
+    isPDF = false;
+    document.querySelector('.pdf-controls').style.display = 'none';
+    await loadImage(file);
+  }
+}
+
+function loadImage(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = new Image();
+      img.onload = function() {
+        prepareImageFromElement(img);
+        resolve();
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function loadPDF(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  pdfDocument = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+  pdfPage = await pdfDocument.getPage(1);
+  const dpi = parseInt(document.getElementById('dpiSlider').value, 10);
+  await renderPDFPageAtDPI(dpi);
+}
+
+async function renderPDFPageAtDPI(dpi) {
+  if (!pdfPage) return;
+  const scale = dpi / 72.0;
+  const viewport = pdfPage.getViewport({scale});
+  const tempCanvas = document.createElement('canvas');
+  const ctx = tempCanvas.getContext('2d');
+  tempCanvas.width = Math.floor(viewport.width);
+  tempCanvas.height = Math.floor(viewport.height);
+  await pdfPage.render({canvasContext: ctx, viewport: viewport}).promise;
+
+  const img = new Image();
+  img.src = tempCanvas.toDataURL('image/png');
+  await new Promise(resolve => {
+    img.onload = () => {
+      prepareImageFromElement(img);
+      resolve();
+    };
+  });
+}
+
+function prepareImageFromElement(img) {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+
+  canvas.width = img.width;
+  canvas.height = img.height;
+  imgWidth = img.width;
+  imgHeight = img.height;
+
+  ctx.fillStyle = 'white';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0);
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  originalData = new Uint8ClampedArray(imageData.data);
+}
+
+function updateProcessing() {
+  if (!originalData) {
+    return;
+  }
+
+  const bgOption = document.querySelector('input[name="backgroundOption"]:checked').value;
+  const binarizationEnabled = document.getElementById('binarizationCheckbox').checked;
+  const binThreshold = parseInt(document.getElementById('binarizationSlider').value, 10);
+
+  const t = parseInt(document.getElementById('whiteScaleSlider').value, 10);
+  const gamma = parseFloat(document.getElementById('gammaSlider').value);
+  const outputType = document.querySelector('input[name="outputType"]:checked')?.value || 'grayscale';
+
+  document.getElementById('whiteScaleValue').textContent = t;
+  document.getElementById('gammaValue').textContent = gamma.toFixed(1);
+  document.getElementById('binarizationValue').textContent = binThreshold;
+
+  // Process the image data
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  
+  const imageData = ctx.createImageData(imgWidth, imgHeight);
+  imageData.data.set(originalData);
+  const data = imageData.data;
+
+  // Check if image is grayscale
+  let isGrayscale = true;
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i], g = data[i+1], b = data[i+2];
+    if (r !== g || g !== b) {
+      isGrayscale = false;
+      break;
+    }
+  }
+
+  for (let i = 0; i < data.length; i += 4) {
+    let r = data[i], g = data[i+1], b = data[i+2];
+
+    // Compute grayscale
+    let c = isGrayscale ? r : Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+    let finalGray;
+
+    if (binarizationEnabled) {
+      // Binarization: finalGray = 0 or 255
+      finalGray = (c >= binThreshold) ? 255 : 0;
+    } else {
+      // Non-binarization:
+      // White scale pre-gamma: c_new = min((c/t)*255,255)
+      let cScaled;
+      if (t === 0) {
+        cScaled = (c > 0) ? 255 : 0; 
+      } else {
+        cScaled = (c / t) * 255;
+        if (cScaled > 255) cScaled = 255;
+      }
+      // Gamma correction
+      const normalized = cScaled / 255;
+      const corrected = Math.pow(normalized, 1/gamma) * 255;
+      finalGray = Math.round(corrected);
+    }
+
+    // Apply finalGray depending on mode
+    if (binarizationEnabled) {
+      // Black/White output
+      if (bgOption === 'transparent') {
+        // Black with alpha
+        // finalGray=255 => white => alpha=0
+        // finalGray=0 => black => alpha=255
+        const alpha = 255 - finalGray;
+        data[i]=0; data[i+1]=0; data[i+2]=0; data[i+3]=alpha;
+      } else {
+        // White background: black or white fully opaque
+        data[i]=finalGray; data[i+1]=finalGray; data[i+2]=finalGray; data[i+3]=255;
+      }
+    } else {
+      // Not binarization:
+      if (outputType === 'grayscale') {
+        // Grayscale mode
+        if (bgOption === 'transparent') {
+          // black with varying alpha
+          const alpha = 255 - finalGray;
+          data[i]=0; data[i+1]=0; data[i+2]=0; data[i+3]=alpha;
+        } else {
+          // White background: just grayscale, no alpha
+          data[i]=finalGray; data[i+1]=finalGray; data[i+2]=finalGray; data[i+3]=255;
+        }
+      } else {
+        // Preserve Colors mode
+        if (bgOption === 'transparent') {
+          // Use finalGray for alpha: alpha=255 - finalGray
+          const alpha = 255 - finalGray;
+          data[i]=r; data[i+1]=g; data[i+2]=b; data[i+3]=alpha;
+        } else {
+          // White background: no alpha, no color change
+          data[i]=r; data[i+1]=g; data[i+2]=b; data[i+3]=255;
+        }
+      }
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+
+  // If white background: produce a no-alpha PNG by drawing onto a canvas with alpha=false
+  let finalCanvas = canvas;
+  if (bgOption === 'white') {
+    const offscreen = document.createElement('canvas');
+    offscreen.width = imgWidth;
+    offscreen.height = imgHeight;
+    const offCtx = offscreen.getContext('2d', { alpha: false });
+    offCtx.drawImage(canvas, 0, 0);
+    finalCanvas = offscreen;
+  }
+
+  const preview = document.getElementById('preview');
+  const previewText = document.getElementById('preview-text');
+  preview.src = finalCanvas.toDataURL('image/png');
+
+  // Show image and hide "No image loaded" text
+  preview.style.display = 'block';
+  previewText.style.display = 'none';
+
+  const downloadBtn = document.getElementById('download-btn');
+  downloadBtn.href = finalCanvas.toDataURL('image/png');
+  downloadBtn.style.display = 'inline-block';
+}
+</script>
+</body>
+</html>
