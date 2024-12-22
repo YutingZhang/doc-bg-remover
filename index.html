@@ -27,7 +27,8 @@
     box-shadow: 0 0 10px rgba(0,0,0,0.1);
   }
 
-  .upload-section, .controls, .bg-option, .type-option, .binarization-option, .download-container, .pdf-controls {
+  .upload-section, .pdf-controls, .binarization-option, .advanced-controls, .bg-option,
+  .type-option, .download-container {
     text-align: center;
     margin-bottom: 20px;
   }
@@ -121,16 +122,24 @@
     cursor: pointer;
   }
 
-  .download-container {
-    text-align: center;
-  }
-
   .binarization-controls {
     display: none; /* shown if binarization is checked */
   }
 
   .pdf-controls {
     display: none; /* shown if PDF selected */
+  }
+
+  .pdf-presets button {
+    margin: 0 5px;
+    cursor: pointer;
+    padding: 5px 8px;
+    border: 1px solid #999;
+    background: #eee;
+    border-radius: 4px;
+  }
+  .pdf-presets button:hover {
+    background: #ddd;
   }
 
   footer {
@@ -151,22 +160,25 @@
         Choose background style, then decide if you want binarization.<br>
         If not binarizing, you can adjust the White Scale (0-255) pre-gamma and Gamma Correction,<br>
         and choose output type (grayscale or preserve colors).<br>
-        If binarizing, only a binarization threshold is available.<br>
-        For PDF, you can also adjust the DPI (default 300).
+        If binarizing, only a binarization threshold is available.
       </p>
       <input type="file" id="fileInput" accept="image/*,.pdf">
       <p class="instructions">Or drag and drop a file into this window.</p>
     </div>
 
-    <!-- Background Style -->
-    <div class="bg-option">
-      <span>Output Background:</span>
-      <label>
-        <input type="radio" name="backgroundOption" value="transparent" checked> Transparent
-      </label>
-      <label>
-        <input type="radio" name="backgroundOption" value="white"> White
-      </label>
+    <!-- PDF Controls (Now placed right under file upload region) -->
+    <div class="pdf-controls">
+      <div class="slider-container">
+        <label for="dpiSlider">PDF Render DPI (72 - 600):</label>
+        <input type="range" id="dpiSlider" min="72" max="600" step="1" value="300" />
+        <span class="slider-value" id="dpiValue">300</span>
+      </div>
+      <div class="pdf-presets">
+        <button data-dpi="72">72</button>
+        <button data-dpi="150">150</button>
+        <button data-dpi="300">300</button>
+        <button data-dpi="600">600</button>
+      </div>
     </div>
 
     <!-- Binarization or not -->
@@ -184,13 +196,14 @@
       </div>
     </div>
 
-    <!-- PDF Controls (Only show if PDF is selected) -->
-    <div class="pdf-controls">
-      <div class="slider-container">
-        <label for="dpiSlider">PDF Render DPI (72 - 600):</label>
-        <input type="range" id="dpiSlider" min="72" max="600" step="1" value="300" />
-        <span class="slider-value" id="dpiValue">300</span>
-      </div>
+    <div class="bg-option">
+      <span>Output Background:</span>
+      <label>
+        <input type="radio" name="backgroundOption" value="transparent" checked> Transparent
+      </label>
+      <label>
+        <input type="radio" name="backgroundOption" value="white"> White
+      </label>
     </div>
 
     <!-- Advanced Controls (visible by default since binarization is off) -->
@@ -239,7 +252,6 @@
 let originalData = null;
 let imgWidth = 0;
 let imgHeight = 0;
-
 let pdfDocument = null;
 let pdfPage = null;
 let isPDF = false;
@@ -255,7 +267,16 @@ document.querySelectorAll('input[name="outputType"]').forEach(radio => {
 });
 document.getElementById('binarizationCheckbox').addEventListener('change', toggleBinarization);
 document.getElementById('binarizationSlider').addEventListener('input', updateProcessing);
+
+// DPI slider and preset buttons
 document.getElementById('dpiSlider').addEventListener('input', dpiChanged);
+document.querySelectorAll('.pdf-presets button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const val = btn.getAttribute('data-dpi');
+    document.getElementById('dpiSlider').value = val;
+    dpiChanged();
+  });
+});
 
 // Drag and drop support
 document.addEventListener('dragover', (e) => {
@@ -362,6 +383,7 @@ function prepareImageFromElement(img) {
   imgWidth = img.width;
   imgHeight = img.height;
 
+  // Fill with white background
   ctx.fillStyle = 'white';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(img, 0, 0);
@@ -416,8 +438,7 @@ function updateProcessing() {
       // Binarization: finalGray = 0 or 255
       finalGray = (c >= binThreshold) ? 255 : 0;
     } else {
-      // Non-binarization:
-      // White scale pre-gamma: c_new = min((c/t)*255,255)
+      // White scale: cScaled = min((c / t) * 255, 255)
       let cScaled;
       if (t === 0) {
         cScaled = (c > 0) ? 255 : 0; 
@@ -425,45 +446,35 @@ function updateProcessing() {
         cScaled = (c / t) * 255;
         if (cScaled > 255) cScaled = 255;
       }
-      // Gamma correction
+      // Then gamma
       const normalized = cScaled / 255;
       const corrected = Math.pow(normalized, 1/gamma) * 255;
       finalGray = Math.round(corrected);
     }
 
-    // Apply finalGray depending on mode
     if (binarizationEnabled) {
-      // Black/White output
+      // Black/White
       if (bgOption === 'transparent') {
-        // Black with alpha
-        // finalGray=255 => white => alpha=0
-        // finalGray=0 => black => alpha=255
         const alpha = 255 - finalGray;
         data[i]=0; data[i+1]=0; data[i+2]=0; data[i+3]=alpha;
       } else {
-        // White background: black or white fully opaque
         data[i]=finalGray; data[i+1]=finalGray; data[i+2]=finalGray; data[i+3]=255;
       }
     } else {
-      // Not binarization:
+      // Not binarization
       if (outputType === 'grayscale') {
-        // Grayscale mode
         if (bgOption === 'transparent') {
-          // black with varying alpha
           const alpha = 255 - finalGray;
           data[i]=0; data[i+1]=0; data[i+2]=0; data[i+3]=alpha;
         } else {
-          // White background: just grayscale, no alpha
           data[i]=finalGray; data[i+1]=finalGray; data[i+2]=finalGray; data[i+3]=255;
         }
       } else {
-        // Preserve Colors mode
+        // Preserve Colors
         if (bgOption === 'transparent') {
-          // Use finalGray for alpha: alpha=255 - finalGray
           const alpha = 255 - finalGray;
           data[i]=r; data[i+1]=g; data[i+2]=b; data[i+3]=alpha;
         } else {
-          // White background: no alpha, no color change
           data[i]=r; data[i+1]=g; data[i+2]=b; data[i+3]=255;
         }
       }
@@ -472,7 +483,7 @@ function updateProcessing() {
 
   ctx.putImageData(imageData, 0, 0);
 
-  // If white background: produce a no-alpha PNG by drawing onto a canvas with alpha=false
+  // If white background, produce a no-alpha PNG
   let finalCanvas = canvas;
   if (bgOption === 'white') {
     const offscreen = document.createElement('canvas');
@@ -487,7 +498,6 @@ function updateProcessing() {
   const previewText = document.getElementById('preview-text');
   preview.src = finalCanvas.toDataURL('image/png');
 
-  // Show image and hide "No image loaded" text
   preview.style.display = 'block';
   previewText.style.display = 'none';
 
