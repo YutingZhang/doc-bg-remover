@@ -1,4 +1,4 @@
-# Document Background and Transparency Adjuster
+# Document Background Remover
 
 This tool allows you to upload (or drag-and-drop) an image or PDF file, then modify the background, transparency, gamma, and other settings. It can convert images (or the first page of a PDF) to either grayscale or preserve original colors, optionally applying a binarization process, adjusting a white scale threshold, or controlling transparency.
 
@@ -103,4 +103,4 @@ This software is licensed under the **GNU General Public License v3.0**. See LIC
 
 Authored by **Yuting Zhang**.
 
-Enjoy customizing your document backgrounds with **Document Background and Transparency Adjuster**!
+Enjoy customizing your document backgrounds with **Document Background Remover**!
