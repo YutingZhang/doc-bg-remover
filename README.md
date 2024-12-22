@@ -91,12 +91,9 @@ This tool allows you to upload (or drag-and-drop) an image or PDF file, then mod
 
 - **PDF.js**: For PDF rendering. Only the **first page** of a multi-page PDF is processed.
 
-- **Drag-and-Drop** support is built into `document.addEventListener('dragover', ...)` and `document.addEventListener('drop', ...)`.
-
 ## Performance Considerations
 
 - Image processing is done in pure JavaScript, iterating over each pixel. For very large images/PDFs (especially at high DPI), performance may be slow.
-- For advanced vectorization or GPU acceleration, consider WebAssembly or WebGL approaches.
 
 ## License
 
